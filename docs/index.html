@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arbeitszeitberechnung</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Arbeitszeitberechnung</h1>
+        <form id="time-form">
+            <label for="start-time">Beginn (HH:MM):</label>
+            <input type="time" id="start-time" required>
+
+            <label for="work-hours">Arbeitszeit (Std.):</label>
+            <input type="number" id="work-hours" step="0.1" required>
+
+            <label for="break-hours">Pause (Std.):</label>
+            <input type="number" id="break-hours" step="0.1" required>
+
+            <label for="end-time">Ende (optional, HH:MM):</label>
+            <input type="time" id="end-time">
+
+            <button type="submit" class="button">Berechnung starten</button>
+        </form>
+
+        <div id="result">
+            <p id="optimal-end">Ende: -</p>
+            <p id="saldo">Saldo: -</p>
+        </div>
+
+        <button id="settings-button" class="button">Einstellungen</button>
+
+        <div id="settings-modal" class="modal">
+            <div class="modal-content">
+                <span class="close">&times;</span>
+                <h2>Einstellungen</h2>
+                <form id="settings-form">
+                    <label for="default-work-hours">Standard-Arbeitszeit (Std.):</label>
+                    <input type="number" id="default-work-hours" step="0.05" required>
+
+                    <label for="default-break-hours">Standard-Pause (Std.):</label>
+                    <input type="number" id="default-break-hours" step="0.05" required>
+
+                    <button type="submit" class="button">Speichern</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
