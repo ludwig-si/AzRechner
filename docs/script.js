@@ -6,17 +6,16 @@ document.addEventListener("DOMContentLoaded", function () {
     const settingsForm = document.getElementById("settings-form");
 
     const defaultWorkHours = localStorage.getItem("workHours") || 7.6;
-
     document.getElementById("work-hours").value = defaultWorkHours;
 
-    // Gesetzliche Pausenregelung basierend auf Arbeitszeit
+    // Berechnet gesetzliche Pausenzeit
     function getLegalBreakTime(workHours) {
         if (workHours > 9) {
             return 0.75; // 45 Minuten
         } else if (workHours > 6) {
             return 0.5; // 30 Minuten
         } else {
-            return 0; // Keine gesetzliche Pause nötig
+            return 0; // Keine Pause gesetzlich vorgeschrieben
         }
     }
 
@@ -33,8 +32,6 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         const breakHours = getLegalBreakTime(workHours);
-
-        // Nur zur Anzeige im Feld – Benutzer darf es nicht selbst setzen
         document.getElementById("break-hours").value = breakHours;
 
         const startTimeDate = new Date(`1970-01-01T${startTime}:00`);
@@ -52,16 +49,18 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     });
 
-    // Settings (nur Work Hours speichern)
+    // Öffne Einstellungen
     settingsButton.addEventListener("click", function () {
         document.getElementById("default-work-hours").value = defaultWorkHours;
         settingsModal.style.display = "block";
     });
 
+    // Schließe Einstellungen
     closeModal.addEventListener("click", function () {
         settingsModal.style.display = "none";
     });
 
+    // Speichern von Einstellungen
     settingsForm.addEventListener("submit", function (event) {
         event.preventDefault();
         const newWorkHours = document.getElementById("default-work-hours").value;
