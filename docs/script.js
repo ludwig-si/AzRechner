@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Optimaler Feierabend
         const optimalEndTime = new Date(startTimeDate.getTime() + (workHours + breakHours) * 60 * 60 * 1000);
-        document.getElementById("optimal-end").textContent = `Ende: ${optimalEndTime.toTimeString().substring(0, 5)}`;
+        document.getElementById("optimal-end").textContent = `Optimales Ende: ${optimalEndTime.toTimeString().substring(0, 5)}`;
 
         if (endTime) {
             const actualWorkTime = actualWorkDuration - breakHours;
