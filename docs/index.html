@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intelligenter Arbeitszeitrechner</title>
+    <title>Arbeitszeitrechner Pro</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <main class="container">
-        <h1>Arbeitszeit-Simulation</h1>
+        <h1>Arbeitszeit & Saldo</h1>
         
         <div class="settings-box">
             <label for="target-hours">Soll-Arbeitszeit (Std):</label>
@@ -26,18 +26,20 @@
         <button id="add-entry-btn" class="button secondary">+ Zeitblock hinzufügen</button>
 
         <div id="result-area">
-            <div class="result-row">
-                <span>Brutto Anwesenheit:</span>
-                <span id="gross-presence">-</span>
+            <div class="result-row highlight-row">
+                <span>🏆 Optimales Ende:</span>
+                <span id="optimal-end-time">--:-- Uhr</span>
             </div>
             
-            <div class="result-row">
-                <span>Anerkannte Pause:</span>
-                <span id="recognized-break">-</span>
-            </div>
+            <hr>
 
+            <div class="result-row">
+                <span>Brutto-Arbeitszeit:</span>
+                <span id="gross-work">-</span>
+            </div>
+            
             <div class="result-row warning-text">
-                <span>System-Abzug (Zwangspause):</span>
+                <span>Gesetzlicher Abzug:</span>
                 <span id="system-deduction">0 min</span>
             </div>
 
@@ -54,7 +56,7 @@
         </div>
         
         <div class="info-box">
-            <small>Hinweis: Die Uhr stoppt automatisch nach 6h (für 30min) und 9h (für weitere 15min), falls keine ausreichenden Pausen (Blöcke ≥ 15min) gemacht wurden. Arbeit während dieser Zeit wird abgezogen.</small>
+            <small>Hinweis: Pausen unter 15 Min. zählen nicht zur gesetzlichen Pausenzeit. Fehlende Pausenzeiten werden nach 6h (30min) und 9h (45min) automatisch abgezogen.</small>
         </div>
     </main>
 
