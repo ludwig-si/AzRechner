@@ -40,12 +40,23 @@ input[type="time"], input[type="number"] { padding: 8px; border: 1px solid #ccc;
 
 #result-area { background-color: #f8f9fa; padding: 15px; border-radius: 8px; }
 .result-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+
+.highlight-row {
+    background-color: #e8f4fc;
+    padding: 10px;
+    margin: -15px -15px 15px -15px;
+    border-bottom: 1px solid #dee2e6;
+    border-radius: 8px 8px 0 0;
+    font-weight: bold;
+    color: #007acc;
+    display: flex;
+    justify-content: space-between;
+}
+
 .warning-text { color: #d35400; font-weight: 500; }
 .bold { font-weight: 600; }
 .large { font-size: 1.2rem; margin-top: 5px; }
-
 .positive { color: #27ae60; }
 .negative { color: #c0392b; }
-
 .info-box { margin-top: 15px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4; }
 hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
