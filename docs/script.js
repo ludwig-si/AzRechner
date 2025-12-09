@@ -5,12 +5,15 @@ document.addEventListener("DOMContentLoaded", function () {
     const targetHoursInput = document.getElementById("target-hours");
     const targetHoursDisplay = document.getElementById("target-hours-display");
 
-    // Initiale Einstellungen
+    // Initiale Einstellungen laden
     const savedTarget = localStorage.getItem("targetHours");
     if (savedTarget) targetHoursInput.value = savedTarget;
     
-    addTimeRow(); // Startzeile
-    calculate();  // Initialberechnung
+    addTimeRow(); 
+    calculate();
+    
+    // Live-Update jede Minute
+    setInterval(calculate, 60000);
 
     // --- Event Listener ---
     addEntryBtn.addEventListener("click", () => { addTimeRow(); calculate(); });
@@ -28,16 +31,14 @@ document.addEventListener("DOMContentLoaded", function () {
         if (e.target.classList.contains("remove-btn")) {
             if (entriesContainer.children.length > 1) {
                 e.target.closest(".time-row").remove();
-                calculate();
             } else {
                 e.target.closest(".time-row").querySelectorAll("input").forEach(i => i.value = "");
-                calculate();
             }
+            calculate();
         }
     });
 
-    // --- Core Functions ---
-
+    // --- Helper ---
     function addTimeRow() {
         entriesContainer.appendChild(template.content.cloneNode(true));
     }
@@ -46,6 +47,14 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!timeStr) return null;
         const [h, m] = timeStr.split(':').map(Number);
         return h * 60 + m;
+    }
+    
+    function minutesToTimeStr(totalMinutes) {
+        let mNorm = totalMinutes % 1440;
+        if (mNorm < 0) mNorm += 1440;
+        const h = Math.floor(mNorm / 60);
+        const m = Math.round(mNorm % 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     }
 
     function formatOutput(minutes, showDecimal = true) {
@@ -57,53 +66,86 @@ document.addEventListener("DOMContentLoaded", function () {
         return `${sign}${h}:${m.toString().padStart(2, '0')} h${showDecimal ? ` (${decimal})` : ''}`;
     }
 
+    // --- Hauptberechnung ---
     function calculate() {
-        // 1. Soll-Zeit
         const targetVal = parseFloat(targetHoursInput.value) || 0;
         const targetMinutes = Math.round(targetVal * 60);
         targetHoursDisplay.textContent = formatOutput(targetMinutes, false);
 
-        // 2. Eingaben parsen
         const rows = document.querySelectorAll(".time-row");
-        let blocks = [];
-        
-        rows.forEach(row => {
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        let realBlocks = [];     
+        let forecastBlocks = []; 
+
+        rows.forEach((row) => {
             const startVal = row.querySelector(".start-input").value;
             const endVal = row.querySelector(".end-input").value;
 
-            if (startVal && endVal) {
+            if (startVal) {
                 let s = timeToMinutes(startVal);
-                let e = timeToMinutes(endVal);
-                // Mitternachtsproblem:
-                if (e < s) e += 1440; 
-                blocks.push({ start: s, end: e });
+                let e_real = null;
+                let e_forecast = null;
+
+                if (endVal) {
+                    // Start & Ende gesetzt
+                    let e = timeToMinutes(endVal);
+                    if (e < s) e += 1440; 
+                    e_real = e;
+                    e_forecast = e;
+                } else {
+                    // Offenes Ende
+                    let nowAdjusted = currentMinutes;
+                    if (nowAdjusted < s) nowAdjusted += 1440;
+                    
+                    e_real = nowAdjusted;
+                    // Prognose: Open end geht theoretisch bis +24h
+                    e_forecast = s + 1440; 
+                }
+                realBlocks.push({ start: s, end: e_real });
+                forecastBlocks.push({ start: s, end: e_forecast });
             }
         });
 
-        if (blocks.length === 0) {
+        if (realBlocks.length === 0) {
             resetUI();
             return;
         }
 
-        // Sortieren
-        blocks.sort((a, b) => a.start - b.start);
+        realBlocks.sort((a, b) => a.start - b.start);
+        forecastBlocks.sort((a, b) => a.start - b.start);
 
-        // 3. SIMULATION STARTEN
-        const result = simulateWorkDay(blocks);
+        // 1. Berechnung IST-Zustand
+        const result = simulateWorkDay(realBlocks);
 
-        // 4. Saldo
-        const saldoMinutes = result.netWork - targetMinutes;
+        // 2. Berechnung Optimales Ende
+        const optimalEndMinute = findOptimalEnd(forecastBlocks, targetMinutes);
 
-        // 5. UI Updates
-        document.getElementById("gross-presence").textContent = formatOutput(result.grossPresence);
-        document.getElementById("recognized-break").textContent = `${result.breakAccumulator} min`;
+        // --- UI Updates ---
         
+        // Optimales Ende
+        const optEndEl = document.getElementById("optimal-end-time");
+        if (optimalEndMinute) {
+            optEndEl.textContent = `${minutesToTimeStr(optimalEndMinute)} Uhr`;
+        } else {
+            optEndEl.textContent = "Ziel erreicht!";
+        }
+
+        // Statistik
+        // "Gross Presence" ist jetzt "Brutto-Arbeitszeit" (reine Anwesenheit)
+        document.getElementById("gross-work").textContent = formatOutput(result.grossPresence);
+        
+        // Deduction (Gesetzlicher Abzug)
         const dedEl = document.getElementById("system-deduction");
         dedEl.textContent = `${result.deduction} min`;
-        dedEl.style.color = result.deduction > 0 ? "#d35400" : "#27ae60";
+        dedEl.style.color = result.deduction > 0 ? "#d35400" : "#777";
 
+        // Netto
         document.getElementById("net-work").textContent = formatOutput(result.netWork);
         
+        // Saldo
+        const saldoMinutes = result.netWork - targetMinutes;
         const saldoEl = document.getElementById("saldo");
         saldoEl.textContent = formatOutput(saldoMinutes);
         saldoEl.className = saldoMinutes >= 0 ? "positive" : "negative";
@@ -111,92 +153,99 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     /**
-     * Die Herzstück-Logik: Minutenweise Simulation
+     * Simulation: Minute für Minute
      */
-    function simulateWorkDay(blocks) {
-        // Tag-Bereich bestimmen
+    function simulateWorkDay(blocks, stopAtTarget = null) {
+        if (blocks.length === 0) return { netWork: 0 };
+
         const dayStart = blocks[0].start;
-        // Wir simulieren bis zum letzten Gehen
         const dayEnd = blocks[blocks.length - 1].end;
 
-        // Helper: Ist Nutzer in dieser Minute anwesend?
         function isPresent(minute) {
             return blocks.some(b => minute >= b.start && minute < b.end);
         }
 
-        // Helper: Befindet sich Minute in einer "gültigen" Pause (>= 15min)?
-        // Wir analysieren Lücken VOR der Simulation.
+        // Pausenlücken analysieren (nur >= 15 min sind gültig)
         const validBreakIntervals = [];
         for (let i = 0; i < blocks.length - 1; i++) {
             const gapStart = blocks[i].end;
             const gapEnd = blocks[i+1].start;
-            const duration = gapEnd - gapStart;
-            if (duration >= 15) {
+            // Nur wenn die Lücke >= 15 Min ist, gilt sie als Pausenerfüllung
+            if ((gapEnd - gapStart) >= 15) {
                 validBreakIntervals.push({ start: gapStart, end: gapEnd });
             }
         }
-
         function isValidBreakTime(minute) {
             return validBreakIntervals.some(i => minute >= i.start && minute < i.end);
         }
 
-        // Zähler
         let netWork = 0;
-        let breakAccumulator = 0; // Wie viel Pause wurde schon angerechnet?
-        let deduction = 0; // Abzug durch Zwangspause während Anwesenheit
-        let grossPresence = 0;
+        let breakAccumulator = 0; // Gesetzlich anerkannte Pause
+        let deduction = 0;        // Automatischer Abzug von Arbeitszeit
+        let grossPresence = 0;    // Reine Anwesenheit
 
-        // Wir laufen jede Minute ab
         for (let m = dayStart; m < dayEnd; m++) {
-            const workingNow = isPresent(m);
             
+            // Prognose-Abbruch
+            if (stopAtTarget !== null && netWork >= stopAtTarget) {
+                return { finishedAt: m }; 
+            }
+
+            const workingNow = isPresent(m);
             if (workingNow) grossPresence++;
 
-            // Prüfen: Müssen wir Pause erzwingen?
             let requiredBreak = 0;
-            if (netWork >= 540) requiredBreak = 45; // nach 9 Std -> 45 Min
-            else if (netWork >= 360) requiredBreak = 30; // nach 6 Std -> 30 Min
+            if (netWork >= 540) requiredBreak = 45;      // nach 9 Std
+            else if (netWork >= 360) requiredBreak = 30; // nach 6 Std
 
-            // Haben wir genug Pause?
+            // Check: Haben wir genug Pause gesammelt?
             if (breakAccumulator < requiredBreak) {
-                // --- ZWANGSPAUSEN-MODUS (Uhr steht) ---
+                // --- Zwangspause nötig ---
                 
-                // Wir füllen den Pausentopf auf, egal was der User macht
-                breakAccumulator++;
-
                 if (workingNow) {
-                    // User ist da, obwohl er Pause machen müsste -> Abzug
+                    // User arbeitet, obwohl er Pause machen müsste.
+                    // Das System zieht die Zeit ab (Deduction) und wertet sie zwangsweise als Pause.
                     deduction++;
+                    breakAccumulator++; 
                 } else {
-                    // User ist weg -> alles gut, er macht seine Zwangspause
+                    // User ist nicht da.
+                    // Zählt das als Erfüllung der Zwangspause?
+                    // NUR wenn es eine gültige Pause (>= 15min) ist!
+                    
+                    if (isValidBreakTime(m)) {
+                        breakAccumulator++;
+                    } else {
+                        // User macht eine kurze Pause (<15 min).
+                        // Das zählt NICHT zur Erfüllung der gesetzlichen Pflicht.
+                        // Der Zähler 'breakAccumulator' bleibt stehen.
+                        // Das heißt: Wenn er wiederkommt, fordert das System immer noch die Pause ein.
+                    }
                 }
 
             } else {
-                // --- NORMALER ARBEITS-MODUS (Uhr läuft) ---
-                
+                // --- Alles okay, normale Arbeit ---
                 if (workingNow) {
                     netWork++;
                 } else {
-                    // User ist weg. Zählt das als Pause für spätere Limits?
-                    // Nur wenn die Lücke >= 15 min ist.
-                    if (isValidBreakTime(m)) {
-                        breakAccumulator++;
-                    }
+                    // User ist weg (freiwillige Zusatzpause).
+                    // Zählt zum Pausenkonto, falls gültig (für spätere 9h Grenze relevant)
+                    if (isValidBreakTime(m)) breakAccumulator++;
                 }
             }
         }
 
-        return {
-            netWork,
-            deduction,
-            grossPresence,
-            breakAccumulator
-        };
+        return { netWork, deduction, grossPresence };
+    }
+
+    function findOptimalEnd(blocks, targetMinutes) {
+        const result = simulateWorkDay(blocks, targetMinutes);
+        if (result.finishedAt) return result.finishedAt;
+        return null;
     }
 
     function resetUI() {
-        document.getElementById("gross-presence").textContent = "-";
-        document.getElementById("recognized-break").textContent = "-";
+        document.getElementById("optimal-end-time").textContent = "--:-- Uhr";
+        document.getElementById("gross-work").textContent = "-";
         document.getElementById("system-deduction").textContent = "0 min";
         document.getElementById("net-work").textContent = "-";
         document.getElementById("saldo").textContent = "-";
