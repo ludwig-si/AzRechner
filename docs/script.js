@@ -4,21 +4,26 @@ document.addEventListener("DOMContentLoaded", function () {
     const template = document.getElementById("entry-template");
     const targetHoursInput = document.getElementById("target-hours");
     const targetHoursDisplay = document.getElementById("target-hours-display");
+    const breakAfterSixHours = 360;
+    const breakAfterNineHours = 540;
+    const requiredBreakAfterSixHours = 30;
+    const requiredBreakAfterNineHours = 45;
+    const longDayWarningThreshold = 600;
 
     // Initiale Einstellungen laden
     const savedTarget = localStorage.getItem("targetHours");
     if (savedTarget) targetHoursInput.value = savedTarget;
-    
-    addTimeRow(); 
+
+    addTimeRow();
     calculate();
-    
+
     // Live-Update jede Minute
     setInterval(calculate, 60000);
 
     // --- Event Listener ---
     addEntryBtn.addEventListener("click", () => { addTimeRow(); calculate(); });
-    
-    targetHoursInput.addEventListener("input", function() {
+
+    targetHoursInput.addEventListener("input", function () {
         localStorage.setItem("targetHours", this.value);
         calculate();
     });
@@ -48,7 +53,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const [h, m] = timeStr.split(':').map(Number);
         return h * 60 + m;
     }
-    
+
     function minutesToTimeStr(totalMinutes) {
         let mNorm = totalMinutes % 1440;
         if (mNorm < 0) mNorm += 1440;
@@ -76,8 +81,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const now = new Date();
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-        let realBlocks = [];     
-        let forecastBlocks = []; 
+        let realBlocks = [];
+        let forecastBlocks = [];
+        let hasOpenBlock = false;
 
         rows.forEach((row) => {
             const startVal = row.querySelector(".start-input").value;
@@ -91,17 +97,18 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (endVal) {
                     // Start & Ende gesetzt
                     let e = timeToMinutes(endVal);
-                    if (e < s) e += 1440; 
+                    if (e < s) e += 1440;
                     e_real = e;
                     e_forecast = e;
                 } else {
                     // Offenes Ende
+                    hasOpenBlock = true;
                     let nowAdjusted = currentMinutes;
                     if (nowAdjusted < s) nowAdjusted += 1440;
-                    
+
                     e_real = nowAdjusted;
                     // Prognose: Open end geht theoretisch bis +24h
-                    e_forecast = s + 1440; 
+                    e_forecast = s + 1440;
                 }
                 realBlocks.push({ start: s, end: e_real });
                 forecastBlocks.push({ start: s, end: e_forecast });
@@ -116,40 +123,61 @@ document.addEventListener("DOMContentLoaded", function () {
         realBlocks.sort((a, b) => a.start - b.start);
         forecastBlocks.sort((a, b) => a.start - b.start);
 
-        // 1. Berechnung IST-Zustand
-        const result = simulateWorkDay(realBlocks);
+        const interBlockBreakMinutes = calculateInterBlockBreakMinutes(realBlocks);
+        const optimalEnd = findOptimalEnd(forecastBlocks, targetMinutes);
+        renderOptimalEnd(optimalEnd);
+        document.getElementById("break-time").textContent = formatOutput(interBlockBreakMinutes, false);
 
-        // 2. Berechnung Optimales Ende
-        const optimalEndMinute = findOptimalEnd(forecastBlocks, targetMinutes);
-
-        // --- UI Updates ---
-        
-        // Optimales Ende
-        const optEndEl = document.getElementById("optimal-end-time");
-        if (optimalEndMinute) {
-            optEndEl.textContent = `${minutesToTimeStr(optimalEndMinute)} Uhr`;
-        } else {
-            optEndEl.textContent = "Ziel erreicht!";
+        if (hasOpenBlock) {
+            resetWorkResults("-");
+            return;
         }
 
-        // Statistik
-        // "Gross Presence" ist jetzt "Brutto-Arbeitszeit" (reine Anwesenheit)
+        const result = simulateWorkDay(realBlocks);
+        renderWorkResults(result, targetMinutes);
+    }
+
+    function calculateInterBlockBreakMinutes(blocks) {
+        let totalBreakMinutes = 0;
+        for (let i = 0; i < blocks.length - 1; i++) {
+            totalBreakMinutes += Math.max(0, blocks[i + 1].start - blocks[i].end);
+        }
+        return totalBreakMinutes;
+    }
+
+    function renderOptimalEnd(optimalEnd) {
+        const optEndEl = document.getElementById("optimal-end-time");
+        if (optimalEnd.status === "reached") {
+            optEndEl.textContent = `${minutesToTimeStr(optimalEnd.minute)} Uhr`;
+        } else {
+            optEndEl.textContent = "Ziel mit diesen Zeiten nicht erreicht";
+        }
+    }
+
+    function renderWorkResults(result, targetMinutes) {
         document.getElementById("gross-work").textContent = formatOutput(result.grossPresence);
-        
-        // Deduction (Gesetzlicher Abzug)
+
         const dedEl = document.getElementById("system-deduction");
         dedEl.textContent = `${result.deduction} min`;
         dedEl.style.color = result.deduction > 0 ? "#d35400" : "#777";
 
-        // Netto
         document.getElementById("net-work").textContent = formatOutput(result.netWork);
-        
-        // Saldo
+        document.getElementById("long-day-warning").hidden = result.netWork <= longDayWarningThreshold;
+
         const saldoMinutes = result.netWork - targetMinutes;
         const saldoEl = document.getElementById("saldo");
         saldoEl.textContent = formatOutput(saldoMinutes);
         saldoEl.className = saldoMinutes >= 0 ? "positive" : "negative";
         if (Math.abs(saldoMinutes) > 0) saldoEl.classList.add("bold", "large");
+    }
+
+    function resetWorkResults(deductionText) {
+        document.getElementById("gross-work").textContent = "-";
+        document.getElementById("system-deduction").textContent = deductionText;
+        document.getElementById("net-work").textContent = "-";
+        document.getElementById("long-day-warning").hidden = true;
+        document.getElementById("saldo").textContent = "-";
+        document.getElementById("saldo").className = "";
     }
 
     /**
@@ -169,7 +197,7 @@ document.addEventListener("DOMContentLoaded", function () {
         const validBreakIntervals = [];
         for (let i = 0; i < blocks.length - 1; i++) {
             const gapStart = blocks[i].end;
-            const gapEnd = blocks[i+1].start;
+            const gapEnd = blocks[i + 1].start;
             // Nur wenn die Lücke >= 15 Min ist, gilt sie als Pausenerfüllung
             if ((gapEnd - gapStart) >= 15) {
                 validBreakIntervals.push({ start: gapStart, end: gapEnd });
@@ -180,44 +208,50 @@ document.addEventListener("DOMContentLoaded", function () {
         }
 
         let netWork = 0;
-        let breakAccumulator = 0; // Gesetzlich anerkannte Pause
-        let deduction = 0;        // Automatischer Abzug von Arbeitszeit
-        let grossPresence = 0;    // Reine Anwesenheit
+        let recordedBreakMinutes = 0;
+        let deductionWithinCurrentThreshold = 0;
+        let currentBreakRequirement = 0;
+        let deduction = 0;
+        let grossPresence = 0;
 
         for (let m = dayStart; m < dayEnd; m++) {
-            
+
             // Prognose-Abbruch
             if (stopAtTarget !== null && netWork >= stopAtTarget) {
-                return { finishedAt: m }; 
+                return { finishedAt: m };
             }
 
             const workingNow = isPresent(m);
             if (workingNow) grossPresence++;
 
             let requiredBreak = 0;
-            if (netWork >= 540) requiredBreak = 45;      // nach 9 Std
-            else if (netWork >= 360) requiredBreak = 30; // nach 6 Std
+            if (netWork >= breakAfterNineHours) requiredBreak = requiredBreakAfterNineHours;
+            else if (netWork >= breakAfterSixHours) requiredBreak = requiredBreakAfterSixHours;
 
-            // Check: Haben wir genug Pause gesammelt?
-            if (breakAccumulator < requiredBreak) {
+            if (requiredBreak > currentBreakRequirement) {
+                currentBreakRequirement = requiredBreak;
+                deductionWithinCurrentThreshold = 0;
+            }
+
+            if (recordedBreakMinutes + deductionWithinCurrentThreshold < requiredBreak) {
                 // --- Zwangspause nötig ---
-                
+
                 if (workingNow) {
                     // User arbeitet, obwohl er Pause machen müsste.
                     // Das System zieht die Zeit ab (Deduction) und wertet sie zwangsweise als Pause.
                     deduction++;
-                    breakAccumulator++; 
+                    deductionWithinCurrentThreshold++;
                 } else {
                     // User ist nicht da.
                     // Zählt das als Erfüllung der Zwangspause?
                     // NUR wenn es eine gültige Pause (>= 15min) ist!
-                    
+
                     if (isValidBreakTime(m)) {
-                        breakAccumulator++;
+                        recordedBreakMinutes++;
                     } else {
                         // User macht eine kurze Pause (<15 min).
                         // Das zählt NICHT zur Erfüllung der gesetzlichen Pflicht.
-                        // Der Zähler 'breakAccumulator' bleibt stehen.
+                        // Der Pausenzähler bleibt stehen.
                         // Das heißt: Wenn er wiederkommt, fordert das System immer noch die Pause ein.
                     }
                 }
@@ -229,9 +263,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 } else {
                     // User ist weg (freiwillige Zusatzpause).
                     // Zählt zum Pausenkonto, falls gültig (für spätere 9h Grenze relevant)
-                    if (isValidBreakTime(m)) breakAccumulator++;
+                    if (isValidBreakTime(m)) recordedBreakMinutes++;
                 }
             }
+        }
+
+        if (stopAtTarget !== null && netWork >= stopAtTarget) {
+            return { finishedAt: dayEnd };
         }
 
         return { netWork, deduction, grossPresence };
@@ -239,16 +277,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function findOptimalEnd(blocks, targetMinutes) {
         const result = simulateWorkDay(blocks, targetMinutes);
-        if (result.finishedAt) return result.finishedAt;
-        return null;
+        if (result.finishedAt !== undefined) {
+            return { status: "reached", minute: result.finishedAt };
+        }
+        return { status: "unreachable", minute: null };
     }
 
     function resetUI() {
         document.getElementById("optimal-end-time").textContent = "--:-- Uhr";
-        document.getElementById("gross-work").textContent = "-";
-        document.getElementById("system-deduction").textContent = "0 min";
-        document.getElementById("net-work").textContent = "-";
-        document.getElementById("saldo").textContent = "-";
-        document.getElementById("saldo").className = "";
+        document.getElementById("break-time").textContent = "0:00 h";
+        resetWorkResults("0 min");
     }
 });
