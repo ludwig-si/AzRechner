@@ -15,31 +15,119 @@ body {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 }
 
-h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; font-size: 1.5rem; }
-
-.settings-box { display: flex; justify-content: space-between; align-items: center; }
-.input-group { display: flex; align-items: center; gap: 10px; }
-.input-group input { width: 70px; padding: 5px; text-align: center; }
-.hint { font-size: 0.85rem; color: #777; min-width: 60px; }
-
-#time-entries { display: flex; flex-direction: column; gap: 10px; margin: 15px 0; }
-
-.time-row {
-    display: flex; align-items: flex-end; gap: 10px;
-    background: #f9f9f9; padding: 10px; border-radius: 6px; border: 1px solid #eee;
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.5rem;
 }
 
-.input-wrapper { display: flex; flex-direction: column; flex: 1; }
-.input-wrapper label { font-size: 0.75rem; color: #666; margin-bottom: 4px; }
-input[type="time"], input[type="number"] { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 100%; box-sizing: border-box; }
+.settings-box {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 
-.button { width: 100%; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 1rem; }
-.button.secondary { background-color: #e0e0e0; color: #333; margin-bottom: 20px; }
-.button.secondary:hover { background-color: #d0d0d0; }
-.remove-btn { background: none; border: none; color: #ff4d4d; font-size: 1.5rem; cursor: pointer; margin-bottom: 3px; }
+.input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 
-#result-area { background-color: #f8f9fa; padding: 15px; border-radius: 8px; }
-.result-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.95rem; }
+.input-group input {
+    width: 70px;
+    padding: 5px;
+    text-align: center;
+}
+
+.hint {
+    font-size: 0.85rem;
+    color: #777;
+    min-width: 60px;
+}
+
+#time-entries {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.time-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #eee;
+}
+
+.input-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.input-wrapper label {
+    font-size: 0.75rem;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+input[type="time"],
+input[type="number"] {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.button {
+    width: 100%;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+
+.button.secondary {
+    background-color: #e0e0e0;
+    color: #333;
+    margin-bottom: 20px;
+}
+
+.button.secondary:hover {
+    background-color: #d0d0d0;
+}
+
+.remove-btn {
+    background: none;
+    border: none;
+    color: #ff4d4d;
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-bottom: 3px;
+}
+
+#result-area {
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+}
+
+.result-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+#long-day-warning[hidden] {
+    display: none;
+}
 
 .highlight-row {
     background-color: #e8f4fc;
@@ -53,10 +141,38 @@ input[type="time"], input[type="number"] { padding: 8px; border: 1px solid #ccc;
     justify-content: space-between;
 }
 
-.warning-text { color: #d35400; font-weight: 500; }
-.bold { font-weight: 600; }
-.large { font-size: 1.2rem; margin-top: 5px; }
-.positive { color: #27ae60; }
-.negative { color: #c0392b; }
-.info-box { margin-top: 15px; font-size: 0.8rem; color: #888; text-align: center; line-height: 1.4; }
-hr { border: 0; border-top: 1px solid #eee; margin: 15px 0; }
+.warning-text {
+    color: #d35400;
+    font-weight: 500;
+}
+
+.bold {
+    font-weight: 600;
+}
+
+.large {
+    font-size: 1.2rem;
+    margin-top: 5px;
+}
+
+.positive {
+    color: #27ae60;
+}
+
+.negative {
+    color: #c0392b;
+}
+
+.info-box {
+    margin-top: 15px;
+    font-size: 0.8rem;
+    color: #888;
+    text-align: center;
+    line-height: 1.4;
+}
+
+hr {
+    border: 0;
+    border-top: 1px solid #eee;
+    margin: 15px 0;
+}
